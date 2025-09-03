@@ -40,16 +40,16 @@ class FluxDepthPreprocessor:
             A dictionary specifying the required inputs and their descriptions for the node interface.
         """
         model_paths = []
-        prefix = os.path.join(folder_paths.models_dir, "checkpoints")
-        local_folders = os.listdir(prefix)
-        local_folders = sorted(
-            [
-                folder
-                for folder in local_folders
-                if not folder.startswith(".") and os.path.isdir(os.path.join(prefix, folder))
-            ]
-        )
-        model_paths = local_folders + model_paths
+        # prefix = os.path.join(folder_paths.models_dir, "checkpoints")
+        # local_folders = os.listdir(prefix)
+        # local_folders = sorted(
+        #     [
+        #         folder
+        #         for folder in local_folders
+        #         if not folder.startswith(".") and os.path.isdir(os.path.join(prefix, folder))
+        #     ]
+        # )
+        # model_paths = local_folders + model_paths
         return {
             "required": {
                 "image": ("IMAGE", {}),

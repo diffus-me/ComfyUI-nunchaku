@@ -9,7 +9,9 @@ import os
 from nunchaku.lora.flux import to_diffusers
 
 from ...wrappers.flux import ComfyFluxWrapper, copy_with_ctx
-from ..utils import get_filename_list, get_full_path_or_raise
+
+import folder_paths
+import execution_context
 
 # Get log level from environment variable (default to INFO)
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -40,7 +42,7 @@ class NunchakuFluxLoraLoader:
     """
 
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(s, context: execution_context.ExecutionContext):
         """
         Defines the input types and tooltips for the node.
 
@@ -59,7 +61,7 @@ class NunchakuFluxLoraLoader:
                     },
                 ),
                 "lora_name": (
-                    get_filename_list("loras"),
+                    ["None"] + folder_paths.get_filename_list(context, "loras"),
                     {"tooltip": "The file name of the LoRA."},
                 ),
                 "lora_strength": (
@@ -72,6 +74,9 @@ class NunchakuFluxLoraLoader:
                         "tooltip": "How strongly to modify the diffusion model. This value can be negative.",
                     },
                 ),
+            },
+            "hidden": {
+                "context": "EXECUTION_CONTEXT",
             }
         }
 
@@ -87,7 +92,7 @@ class NunchakuFluxLoraLoader:
         "You can link multiple LoRA nodes."
     )
 
-    def load_lora(self, model, lora_name: str, lora_strength: float):
+    def load_lora(self, model, lora_name: str, lora_strength: float, context: execution_context.ExecutionContext):
         """
         Apply a LoRA to a Nunchaku FLUX diffusion model.
 
@@ -99,19 +104,23 @@ class NunchakuFluxLoraLoader:
             The name of the LoRA to apply.
         lora_strength : float
             The strength with which to apply the LoRA.
+        context : execution_context.ExecutionContext
+            The execution context.
 
         Returns
         -------
         tuple
             A tuple containing the modified diffusion model.
         """
-        if abs(lora_strength) < 1e-5:
+        if not lora_name or lora_name == "None" or abs(lora_strength) < 1e-5:
             return (model,)  # If the strength is too small, return the original model
 
         model_wrapper = model.model.diffusion_model
         assert isinstance(model_wrapper, ComfyFluxWrapper)
 
-        lora_path = get_full_path_or_raise("loras", lora_name)
+        lora_path = folder_paths.get_full_path_or_raise(context, "loras", lora_name)
+        if hasattr(lora_path, 'filename'):
+            lora_path = lora_path.filename
 
         ret_model_wrapper, ret_model = copy_with_ctx(model_wrapper)
 
@@ -155,7 +164,7 @@ class NunchakuFluxLoraStack:
     """
 
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(s, exec_context: execution_context.ExecutionContext):
         """
         Defines the input types for the LoRA stack node.
 
@@ -176,12 +185,15 @@ class NunchakuFluxLoraStack:
                 ),
             },
             "optional": {},
+            "hidden": {
+                "context": "EXECUTION_CONTEXT"
+            }
         }
 
         # Add fixed number of LoRA inputs (15 slots)
         for i in range(1, 16):  # Support up to 15 LoRAs
             inputs["optional"][f"lora_name_{i}"] = (
-                ["None"] + get_filename_list("loras"),
+                ["None"] + folder_paths.get_filename_list(exec_context, "loras"),
                 {"tooltip": f"The file name of LoRA {i}. Select 'None' to skip this slot."},
             )
             inputs["optional"][f"lora_strength_{i}"] = (
@@ -226,6 +238,7 @@ class NunchakuFluxLoraStack:
             A tuple containing the modified diffusion model.
         """
         # Collect LoRA information to apply
+        context = kwargs.get("context", None)
         loras_to_apply = []
 
         for i in range(1, 16):  # Check all 15 LoRA slots
@@ -259,7 +272,9 @@ class NunchakuFluxLoraStack:
 
         # Add all LoRAs
         for lora_name, lora_strength in loras_to_apply:
-            lora_path = get_full_path_or_raise("loras", lora_name)
+            lora_path = folder_paths.get_full_path_or_raise(context, "loras", lora_name)
+            if hasattr(lora_path, 'filename'):
+                lora_path = lora_path.filename
             ret_model_wrapper.loras.append((lora_path, lora_strength))
 
             # Check if input channels need to be updated

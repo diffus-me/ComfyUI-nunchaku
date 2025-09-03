@@ -20,8 +20,10 @@ from nunchaku.models.pulid.pulid_forward import pulid_forward
 from nunchaku.pipeline.pipeline_flux_pulid import PuLIDPipeline
 
 from ...wrappers.flux import ComfyFluxWrapper, copy_with_ctx
-from ..utils import folder_paths, get_filename_list, get_full_path_or_raise
 from .utils import set_extra_config_model_path
+
+import folder_paths
+import execution_context
 
 # Get log level from environment variable (default to INFO)
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -158,7 +160,7 @@ class NunchakuPuLIDLoaderV2:
     """
 
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(s, context: execution_context.ExecutionContext):
         """
         Defines the input types and tooltips for the node.
 
@@ -167,14 +169,17 @@ class NunchakuPuLIDLoaderV2:
         dict
             A dictionary specifying the required inputs and their descriptions for the node interface.
         """
-        pulid_files = get_filename_list("pulid")
-        clip_files = get_filename_list("clip")
+        pulid_files = folder_paths.get_filename_list(context, "pulid")
+        clip_files = folder_paths.get_filename_list(context, "clip")
         return {
             "required": {
                 "model": ("MODEL", {"tooltip": "The nunchaku model."}),
                 "pulid_file": (pulid_files, {"tooltip": "Path to the PuLID model."}),
                 "eva_clip_file": (clip_files, {"tooltip": "Path to the EVA clip model."}),
                 "insight_face_provider": (["gpu", "cpu"], {"default": "gpu", "tooltip": "InsightFace ONNX provider."}),
+            },
+            "hidden": {
+                "context": "EXECUTION_CONTEXT",
             }
         }
 
@@ -183,7 +188,7 @@ class NunchakuPuLIDLoaderV2:
     CATEGORY = "Nunchaku"
     TITLE = "Nunchaku PuLID Loader V2"
 
-    def load(self, model, pulid_file: str, eva_clip_file: str, insight_face_provider: str):
+    def load(self, model, pulid_file: str, eva_clip_file: str, insight_face_provider: str, context: execution_context.ExecutionContext):
         """
         Load the PuLID pipeline and associate it with the given Nunchaku FLUX model.
 
@@ -210,8 +215,8 @@ class NunchakuPuLIDLoaderV2:
         device = comfy.model_management.get_torch_device()
         weight_dtype = next(transformer.parameters()).dtype
 
-        pulid_path = get_full_path_or_raise("pulid", pulid_file)
-        eva_clip_path = get_full_path_or_raise("clip", eva_clip_file)
+        pulid_path = folder_paths.get_full_path_or_raise(context, "pulid", pulid_file)
+        eva_clip_path = folder_paths.get_full_path_or_raise(context, "clip", eva_clip_file)
         insightface_dirpath = folder_paths.get_folder_paths("insightface")[0]
         facexlib_dirpath = folder_paths.get_folder_paths("facexlib")[0]
 

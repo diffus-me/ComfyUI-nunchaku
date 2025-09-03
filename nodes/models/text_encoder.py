@@ -17,7 +17,8 @@ from torch import nn
 
 from nunchaku import NunchakuT5EncoderModel
 
-from ..utils import folder_paths, get_filename_list, get_full_path_or_raise
+import folder_paths
+import execution_context
 
 # Get log level from environment variable (default to INFO)
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -47,7 +48,7 @@ class NunchakuTextEncoderLoaderV2:
     TITLE = "Nunchaku Text Encoder Loader V2"
 
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(s, context: execution_context.ExecutionContext):
         """
         Defines the input types and tooltips for the node.
 
@@ -59,8 +60,8 @@ class NunchakuTextEncoderLoaderV2:
         return {
             "required": {
                 "model_type": (["flux.1"],),
-                "text_encoder1": (get_filename_list("text_encoders"),),
-                "text_encoder2": (get_filename_list("text_encoders"),),
+                "text_encoder1": (folder_paths.get_filename_list(context, "text_encoders"),),
+                "text_encoder2": (folder_paths.get_filename_list(context, "text_encoders"),),
                 "t5_min_length": (
                     "INT",
                     {
@@ -73,10 +74,13 @@ class NunchakuTextEncoderLoaderV2:
                         "tooltip": "Minimum sequence length for the T5 encoder.",
                     },
                 ),
+            },
+            "hidden": {
+                "context": "EXECUTION_CONTEXT",
             }
         }
 
-    def load_text_encoder(self, model_type: str, text_encoder1: str, text_encoder2: str, t5_min_length: int):
+    def load_text_encoder(self, model_type: str, text_encoder1: str, text_encoder2: str, t5_min_length: int, context: execution_context.ExecutionContext):
         """
         Loads the text encoders with the given configuration.
 
@@ -96,8 +100,8 @@ class NunchakuTextEncoderLoaderV2:
         tuple
             Tuple containing the loaded CLIP model.
         """
-        text_encoder_path1 = get_full_path_or_raise("text_encoders", text_encoder1)
-        text_encoder_path2 = get_full_path_or_raise("text_encoders", text_encoder2)
+        text_encoder_path1 = folder_paths.get_full_path_or_raise(context, "text_encoders", text_encoder1)
+        text_encoder_path2 = folder_paths.get_full_path_or_raise(context, "text_encoders", text_encoder2)
         if model_type == "flux.1":
             clip_type = comfy.sd.CLIPType.FLUX
         else:
@@ -428,7 +432,7 @@ class NunchakuTextEncoderLoader:
     """
 
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(s, context: execution_context.ExecutionContext):
         """
         Defines the input types and tooltips for the node.
 
@@ -452,8 +456,8 @@ class NunchakuTextEncoderLoader:
         return {
             "required": {
                 "model_type": (["flux"],),
-                "text_encoder1": (get_filename_list("text_encoders"),),
-                "text_encoder2": (get_filename_list("text_encoders"),),
+                "text_encoder1": (folder_paths.get_filename_list(context, "text_encoders"),),
+                "text_encoder2": (folder_paths.get_filename_list(context, "text_encoders"),),
                 "t5_min_length": (
                     "INT",
                     {
@@ -471,6 +475,9 @@ class NunchakuTextEncoderLoader:
                     model_paths,
                     {"tooltip": "The name of the 4-bit T5 model."},
                 ),
+            },
+            "hidden": {
+                "context": "EXECUTION_CONTEXT",
             }
         }
 
@@ -487,6 +494,7 @@ class NunchakuTextEncoderLoader:
         t5_min_length: int,
         use_4bit_t5: str,
         int4_model: str,
+        context: execution_context.ExecutionContext,
     ):
         """
         Loads the text encoders with the given configuration.
@@ -505,6 +513,8 @@ class NunchakuTextEncoderLoader:
             Whether to use a 4-bit T5 model ("enable" or "disable").
         int4_model : str
             The name or path of the 4-bit T5 model.
+        context : execution_context.ExecutionContext
+            The node execution context.
 
         Returns
         -------
@@ -520,8 +530,8 @@ class NunchakuTextEncoderLoader:
             "Nunchaku Text Encoder Loader will be deprecated in v0.4. "
             "Please use the Nunchaku Text Encoder Loader V2 node instead."
         )
-        text_encoder_path1 = get_full_path_or_raise("text_encoders", text_encoder1)
-        text_encoder_path2 = get_full_path_or_raise("text_encoders", text_encoder2)
+        text_encoder_path1 = folder_paths.get_full_path_or_raise(context, "text_encoders", text_encoder1)
+        text_encoder_path2 = folder_paths.get_full_path_or_raise(context, "text_encoders", text_encoder2)
         if model_type == "flux":
             clip_type = comfy.sd.CLIPType.FLUX
         else:

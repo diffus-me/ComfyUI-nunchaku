@@ -7,6 +7,7 @@ import gc
 import json
 import logging
 import os
+import pathlib
 
 import comfy.model_management
 import comfy.model_patcher
@@ -18,7 +19,10 @@ from nunchaku.caching.diffusers_adapters.flux import apply_cache_on_transformer
 from nunchaku.utils import is_turing
 
 from ...wrappers.flux import ComfyFluxWrapper
-from ..utils import get_filename_list, get_full_path_or_raise
+
+import folder_paths
+import execution_context
+from measure_vram import measure_model_load_vram
 
 # Get log level from environment variable (default to INFO)
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -27,6 +31,12 @@ log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(level=getattr(logging, log_level, logging.INFO), format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+folder_paths.folder_names_and_paths["nunchaku"] = (
+    [
+        os.path.join(folder_paths.models_dir, "diffusion_models", "nunchaku")
+    ],
+    {".safetensors", }
+)
 
 class NunchakuFluxDiTLoader:
     """
@@ -69,7 +79,7 @@ class NunchakuFluxDiTLoader:
         self.device = comfy.model_management.get_torch_device()
 
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(s, context: execution_context.ExecutionContext):
         """
         Define the input types and tooltips for the node.
 
@@ -78,7 +88,7 @@ class NunchakuFluxDiTLoader:
         dict
             A dictionary specifying the required inputs and their descriptions for the node interface.
         """
-        safetensor_files = get_filename_list("diffusion_models")
+        safetensor_files = folder_paths.get_filename_list(context, "nunchaku")
 
         ngpus = torch.cuda.device_count()
 
@@ -163,6 +173,9 @@ class NunchakuFluxDiTLoader:
                     },
                 )
             },
+            "hidden": {
+                "context": "EXECUTION_CONTEXT",
+            }
         }
 
     RETURN_TYPES = ("MODEL",)
@@ -170,6 +183,7 @@ class NunchakuFluxDiTLoader:
     CATEGORY = "Nunchaku"
     TITLE = "Nunchaku FLUX DiT Loader"
 
+    @measure_model_load_vram(device=0, clear_cache_before=True, logger=print)
     def load_model(
         self,
         model_path: str,
@@ -206,8 +220,10 @@ class NunchakuFluxDiTLoader:
             A tuple containing the loaded and patched model.
         """
         device = torch.device(f"cuda:{device_id}")
+        context = kwargs["context"]
+        model_name = model_path
 
-        model_path = get_full_path_or_raise("diffusion_models", model_path)
+        model_path = pathlib.Path(folder_paths.get_full_path_or_raise(context, "nunchaku", model_path))
 
         # Check if the device_id is valid
         if device_id >= torch.cuda.device_count():
@@ -312,4 +328,5 @@ class NunchakuFluxDiTLoader:
             },
         )
         model = comfy.model_patcher.ModelPatcher(model, device, device_id)
+        model.model_name = model_name
         return (model,)
