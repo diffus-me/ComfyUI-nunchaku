@@ -14,8 +14,9 @@ from nunchaku.utils import check_hardware_compatibility, get_precision_from_quan
 
 from ...model_configs.zimage import NunchakuZImage
 from ...model_patcher.zimage import ZImageModelPatcher
-from ..utils import get_filename_list, get_full_path_or_raise
 
+import folder_paths
+import execution_context
 
 def _patch_state_dict(state_dict: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
     """
@@ -180,7 +181,7 @@ class NunchakuZImageDiTLoader:
     """
 
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(s, exec_context: execution_context.ExecutionContext):
         """
         Define the input types and tooltips for the node.
 
@@ -192,10 +193,13 @@ class NunchakuZImageDiTLoader:
         return {
             "required": {
                 "model_name": (
-                    get_filename_list("diffusion_models"),
+                    folder_paths.get_filename_list(exec_context, "diffusion_models"),
                     {"tooltip": "The Nunchaku Z-Image model."},
                 ),
             },
+            "hidden": {
+                "context": "EXECUTION_CONTEXT",
+            }
         }
 
     RETURN_TYPES = ("MODEL",)
@@ -217,7 +221,8 @@ class NunchakuZImageDiTLoader:
         tuple
             A tuple containing the loaded and patched model.
         """
-        model_path = get_full_path_or_raise("diffusion_models", model_name)
+        exec_context = kwargs.get("context")
+        model_path = folder_paths.get_full_path_or_raise(exec_context, "diffusion_models", model_name)
         sd, metadata = comfy.utils.load_torch_file(model_path, return_metadata=True)
 
         model = _load(sd, metadata=metadata)

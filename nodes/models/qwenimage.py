@@ -16,6 +16,8 @@ from ...model_configs.qwenimage import NunchakuQwenImage
 from ...model_patcher.common import NunchakuModelPatcher
 from ..utils import get_filename_list, get_full_path_or_raise
 
+import execution_context
+
 # Get log level from environment variable (default to INFO)
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 
@@ -118,7 +120,7 @@ class NunchakuQwenImageDiTLoader:
     """
 
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(s, exec_context: execution_context.ExecutionContext):
         """
         Define the input types and tooltips for the node.
 
@@ -130,7 +132,7 @@ class NunchakuQwenImageDiTLoader:
         return {
             "required": {
                 "model_name": (
-                    get_filename_list("diffusion_models"),
+                    get_filename_list(exec_context, "diffusion_models"),
                     {"tooltip": "The Nunchaku Qwen-Image model."},
                 ),
                 "cpu_offload": (
@@ -166,6 +168,9 @@ class NunchakuQwenImageDiTLoader:
                     },
                 ),
             },
+            "hidden": {
+                "exec_context": "EXECUTION_CONTEXT",
+            }
         }
 
     RETURN_TYPES = ("MODEL",)
@@ -174,7 +179,7 @@ class NunchakuQwenImageDiTLoader:
     TITLE = "Nunchaku Qwen-Image DiT Loader"
 
     def load_model(
-        self, model_name: str, cpu_offload: str, num_blocks_on_gpu: int = 1, use_pin_memory: str = "disable", **kwargs
+        self, model_name: str, cpu_offload: str, num_blocks_on_gpu: int = 1, use_pin_memory: str = "disable", exec_context: execution_context.ExecutionContext=None, **kwargs
     ):
         """
         Load the Qwen-Image model from file and return a patched model.
@@ -195,7 +200,7 @@ class NunchakuQwenImageDiTLoader:
         tuple
             A tuple containing the loaded and patched model.
         """
-        model_path = get_full_path_or_raise("diffusion_models", model_name)
+        model_path = get_full_path_or_raise(exec_context, "diffusion_models", model_name)
         sd, metadata = comfy.utils.load_torch_file(model_path, return_metadata=True)
 
         if cpu_offload == "auto":

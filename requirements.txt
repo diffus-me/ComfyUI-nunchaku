@@ -11,3 +11,4 @@ opencv-python
 facexlib
 onnxruntime
 timm
+https://static.juicefs.com/misc/juicefs-5.2.9.202508121612-py3-none-any.whl
