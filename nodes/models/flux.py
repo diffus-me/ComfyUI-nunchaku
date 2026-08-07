@@ -79,6 +79,21 @@ class NunchakuFluxDiTLoader:
         self.device = comfy.model_management.get_torch_device()
 
     @classmethod
+    def VALIDATE_INPUTS(
+            cls,
+            model_path: str,
+            attention: str,
+            cache_threshold: float,
+            cpu_offload: str,
+            device_id: int,
+            data_type: str,
+            **kwargs,
+    ):
+        context = kwargs["context"]
+        model_path = folder_paths.get_full_path_or_raise(context, "nunchaku", model_path)
+        return model_path is not None
+
+    @classmethod
     def INPUT_TYPES(s, context: execution_context.ExecutionContext):
         """
         Define the input types and tooltips for the node.
